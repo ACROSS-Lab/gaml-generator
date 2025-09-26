@@ -1,0 +1,152 @@
+## Added start start section
+#start: "model mymodel"
+start: entry
+## END
+
+entry: model | string_evaluator | experiment_file_structure
+string_evaluator: ID "<-" expression
+model: (pragma)* "model" ID (import)* model_block
+model_block: block s_section*
+import: "import" STRING ("as" valid_id)?
+pragma: "@" ID ("[" expression_list? "]")?
+
+
+experiment_file_structure: headless_experiment
+headless_experiment: A_EXPERIMENT_KEY ("name:")? (valid_id | STRING) ("model:" STRING)? facet* (block | ";")
+
+s_section: s_global | s_species | s_experiment
+s_global: "global" facet* (block | ";")
+s_species: A_SPECIES_KEY ("name:" ID)? ID facet* (block | ";")
+s_experiment: A_EXPERIMENT_KEY ("name:" (valid_id | STRING))? (facet)* (block | ";")
+
+#statement: s_declaration
+statement.2: s_declaration 
+         | (s_assignment | s_1expr_facets_block_or_end | s_other | s_do | s_return | s_solve | s_if | s_try | s_equations)
+         | s_display
+s_1expr_facets_block_or_end: a_1expr_facets_block_or_end_key (first_facet_key)? expression facet* (block | ";")
+s_do: A_DO_KEY ("action:" abstract_ref)? expression facet* (block | ";")
+s_loop: "loop" ID? facet* block
+s_if: "if" ("condition:" expression)? block ("else" (s_if | block))?
+s_try: "try" block ("catch" block)?
+s_other: ID facet* (block | ";")
+s_return: "return" ("value:" expression)? expression? ";"
+
+
+s_declaration: s_definition | s_species | s_reflex | s_var | s_loop
+s_reflex: A_REFLEX_KEY ("name:" valid_id)? ("when:" expression)? block
+s_definition: type_ref ("name:" (valid_id | STRING))? ("(" action_arguments ")")? facet* (block | ";")
+s_action: "action" ("name:" valid_id)? ("(" action_arguments ")")? facet* (block | ";")
+s_var: A_VAR_OR_CONST_KEY ("name:" valid_id)? facet* ";"
+
+
+s_assignment: s_direct_assignment | s_set
+s_direct_assignment: expression A_ASSIGNMENT_KEY expression facet* ";"
+s_set: "set" expression ("value:" | "<-") expression ";"
+s_equations: A_EQUATIONS_KEY valid_id facet* ("{" (s_equation ";")* "}" | ";")
+s_equation: (function | variable_ref) "=" expression
+s_solve: A_SOLVE_KEY ("equation:" equation_ref)? facet* (block | ";")
+
+
+s_display: "display" ("name:" (valid_id | STRING))? facet* display_block
+display_block: "{" (display_statement)* "}"
+display_statement: species_or_grid_display_statement | (image_display_statement | statement)
+species_or_grid_display_statement: A_SPECIES_KEY expression facet* (display_block | ";")
+image_display_statement: A_IMAGE_LAYER_KEY expression facet* ";"
+
+
+
+A_EQUATIONS_KEY: "equation"
+A_SOLVE_KEY: "solve"
+A_SPECIES_KEY: "species" | "grid"
+A_IMAGE_LAYER_KEY: "image"
+A_EXPERIMENT_KEY: "experiment"
+a_1expr_facets_block_or_end_key: A_LAYER_KEY | "ask" | "release" | "capture" | "create" | "write" | "error" | "warn" | "exception"  | "save" | "assert" | "inspect" | "browse" | "restore" | "draw" | "using" | "switch"  | "put" | "add" | "remove" | "match" | "match_between" | "match_one" | "parameter"  | "status" | "highlight" | "focus_on" | "layout"
+A_LAYER_KEY: "light" | "camera" | "text" | "image_layer" | "data" | "chart" | "agents" | "graphics" | "display_population" | "display_grid" | "event" | "overlay" | "datalist" | "mesh"
+A_DO_KEY: "do" | "invoke"
+A_VAR_OR_CONST_KEY: "var" | "const" | "let" | "arg"
+A_REFLEX_KEY: "init" | "reflex" | "aspect"
+A_ASSIGNMENT_KEY: "<-" | "<<" | ">>" | "<<+" | ">>-" | "+<-" | "<+" | ">-"
+
+
+action_arguments: argument_definition ("," argument_definition)*
+argument_definition: type_ref valid_id ("<-" expression)?
+
+
+facet: action_facet | definition_facet | classic_facet | type_facet | var_facet | function_facet
+first_facet_key: DEFINITION_FACET_KEY | TYPE_FACET_KEY | SPECIAL_FACET_KEY | VAR_FACET_KEY | ACTION_FACET_KEY | CLASSIC_FACET_KEY
+CLASSIC_FACET_KEY: ID ":"
+DEFINITION_FACET_KEY: "name:" | "returns:"
+TYPE_FACET_KEY: "as:" | "of:" | "parent:" | "species:" | "type:"
+SPECIAL_FACET_KEY: "camera:" | "data:" | "when:" | "const:" | "value:" | "topology:" | "item:" | "init:"  | "message:" | "control:" | "layout:" | "environment:" | "text:" | "image:" | "using:"  | "parameter:" | "aspect:" | "light:"
+ACTION_FACET_KEY: "action:" | "on_change:"
+VAR_FACET_KEY: "var:"
+classic_facet: (CLASSIC_FACET_KEY | "<-" | SPECIAL_FACET_KEY) expression
+definition_facet: DEFINITION_FACET_KEY (valid_id | STRING)
+function_facet: "->" (expression | "{" expression "}")
+type_facet: TYPE_FACET_KEY (type_ref | expression)
+action_facet: ACTION_FACET_KEY (action_ref | block)
+var_facet: ACTION_FACET_KEY variable_ref
+
+
+block: "{" (statement)* "}"
+
+
+expression: argument_pair
+binary_operator: or | and | cast | comparison | addition | multiplication | exponentiation | binary | pair | unit
+argument_pair: (valid_id "::" | (DEFINITION_FACET_KEY | TYPE_FACET_KEY | SPECIAL_FACET_KEY | ACTION_FACET_KEY | VAR_FACET_KEY) ":")? pair
+pair: if ("::" if)?
+if: or ("?" or (":" or))?
+or: and ("or" and)*
+and: cast ("and" cast)*
+cast: comparison ("as" (type_ref | "(" type_ref ")"))?
+comparison: addition (("!=" | "=" | ">=" | "<=" | "<" | ">") addition)?
+addition: multiplication (("+" | "-") multiplication)*
+multiplication: exponentiation (("*" | "/") exponentiation)*
+exponentiation: binary ("^" binary)*
+binary: unit (valid_id unit)*
+unit: unary ("#" unit_ref)?
+unary: access | ("#" unit_ref) | (("-" | "!" | "not") unary)
+access: primary (("[" expression_list? "]") | ("." primary))*
+primary: terminal_expression | abstract_ref | "(" expression_list ")" | "[" expression_list? "]" | "{" expression "," expression ("," expression)? "}"
+abstract_ref: function | variable_ref
+function: action_ref type_info? "(" expression_list? ")"
+expression_list: (expression ("," expression)*) | (parameter ("," parameter)*)
+parameter: ((DEFINITION_FACET_KEY | TYPE_FACET_KEY | SPECIAL_FACET_KEY | ACTION_FACET_KEY | VAR_FACET_KEY) ":") | (variable_ref ":") expression
+unit_ref: unit_fake_definition | ID
+variable_ref: var_definition | valid_id
+#type_ref: (type_definition | ID) type_info? | "species" type_info | "image"
+#type_ref: ("**type*")? ID type_info? | "species" type_info | "image"
+type_ref.2: ("**type*")? ID type_info? | "species" type_info | "image"
+type_info: "<" type_ref ("," type_ref)? ">"
+skill_ref: skill_fake_definition | ID
+action_ref: action_definition
+equation_ref: equation_definition
+# gaml_definition: var_definition | unit_fake_definition | skill_fake_definition | action_definition | equation_definition
+equation_definition: s_equations | equation_fake_definition
+type_definition: type_fake_definition
+var_definition: s_declaration | model | argument_definition | definition_facet | var_fake_definition | import | s_experiment
+#action_definition: s_action | action_fake_definition | s_definition | type_definition
+action_definition.2: s_action | action_fake_definition | s_definition | type_definition
+
+
+unit_fake_definition: "**unit*" ID
+type_fake_definition: "**type*" ID
+action_fake_definition: "**action*" valid_id
+skill_fake_definition: "**skill*" ID
+var_fake_definition: "**var*" valid_id
+equation_fake_definition: "**equation*" valid_id
+valid_id: A_SPECIES_KEY | A_IMAGE_LAYER_KEY | A_DO_KEY | A_REFLEX_KEY | A_VAR_OR_CONST_KEY | a_1expr_facets_block_or_end_key | A_EQUATIONS_KEY | ID | A_EXPERIMENT_KEY
+
+
+terminal_expression: STRING | INTEGER | DOUBLE | BOOLEAN | KEYWORD
+string_literal: STRING
+KEYWORD: "each" | "self" | "myself" | "nil" | "super"
+INTEGER: "0" | /[1-9][0-9]*/
+BOOLEAN: "true" | "false"
+ID: "2d" | "3d" | "2D" | "3D" | /[a-zA-Z_$][a-zA-Z0-9_$]*/
+DOUBLE: /[1-9][0-9]*(\.[0-9]+)?([eE][+-]?[0-9]+)?|0(\.[0-9]+)?([eE][+-]?[0-9]+)?/
+STRING: /"(\\"[btnfru"\\\\]|[^"\\\\])*"|'(\\'[btnfru'\\\\]|[^'\\\\])*'/
+ML_COMMENT: /\/\*.*?\*\//s
+SL_COMMENT: /\/\/[^\n\r]*(\r?\n)?/
+WS: /[ \t\r\n]+/
+ANY_OTHER: /./

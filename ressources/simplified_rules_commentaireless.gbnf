@@ -1,0 +1,105 @@
+######################################################################
+# Lite-GAML (spaces everywhere, simple recursion)
+# - Balanced {}, (), []
+# - Whitespace W allowed between all tokens
+# - Permissive sections/statements; strict-ish "model ID" shell
+######################################################################
+
+# ─────────────────────────
+# Whitespace
+# ─────────────────────────
+S      ::= (WS)*
+W      ::= S?
+
+# ─────────────────────────
+# Root
+# ─────────────────────────
+root         ::= entry W
+entry        ::= model
+
+# If desired, uncomment these and widen 'entry':
+# standalone-block ::= INDENT? "__synthetic__" W block
+# string-evaluator ::= INDENT? ID W "<-" W item
+# entry  ::= model | standalone-block | string-evaluator
+
+# ─────────────────────────
+# Pragmas / imports (kept simple)
+# ─────────────────────────
+pragma       ::= INDENT? "@" W ID (W "[" W list? W "]")?
+import       ::= INDENT? "import" W STRING (W "as" W ID)?
+
+# ─────────────────────────
+# Model shell
+# ─────────────────────────
+model        ::= INDENT? "model" W ID W import* W model-body
+model-body   ::= block | section*
+
+# ─────────────────────────
+# Sections (header + ';' or a block)
+# ─────────────────────────
+section      ::= INDENT? header W (";" | block)
+header       ::= ID (W ID)*
+
+# ─────────────────────────
+# Statements (permissive; spaces between items)
+# ─────────────────────────
+statement    ::= INDENT? (piece (W piece)*) W (";" | block)
+piece        ::= atom | group
+
+# ─────────────────────────
+# Balanced groups (simple recursion)
+# (These can also begin a line, so allow optional INDENT.)
+# ─────────────────────────
+group        ::= paren | bracket | block
+
+paren        ::= INDENT? "(" W content? W ")"
+bracket      ::= INDENT? "[" W content? W "]"
+block        ::= INDENT? "{" W block-content? W "}" W
+
+# content allows nesting via 'group'
+content      ::= INDENT? (group | atom) (W (group | atom))*
+# block-content allows nested blocks and free text chunks
+block-content::= INDENT (block | chunk) (W (block | chunk))*
+
+# A chunk is any run of non-brace chars or a STRING
+chunk        ::= INDENT? chunk-char+
+chunk-char   ::= INDENT? [^{}] | STRING
+
+# ─────────────────────────
+# Lists (cheap)
+# ─────────────────────────
+list         ::= INDENT? item (W "," W item)*
+item         ::= group | atom
+
+# ─────────────────────────
+# Atoms & tokens
+# ─────────────────────────
+atom         ::= NUMBER | ID | OP | SEP #| STRING
+
+# Keep separators that aren’t our group delimiters
+SEP          ::= ":" | "::" | "." | "," | ";"
+
+OP           ::= "<-" | "<<" | ">>" | "<<+" | ">>-" | "+<-" | "<+" | ">-" | "==" | "!=" | ">=" | "<=" | "<" | ">" | "+" | "-" | "*" | "/" | "^" | "#"
+
+ID           ::= [a-zA-Z_$] [a-zA-Z0-9_$]*
+NUMBER       ::= ("0" | [1-9][0-9]*) ("." [0-9]+)? (("e" | "E") ("+" | "-")? [0-9]+)?
+
+# Strings
+esc          ::= "\\" .
+dq-char      ::= esc | [^"\\]
+sq-char      ::= esc | [^'\\]
+STRING       ::= "\"" dq-char* "\"" | "'" sq-char* "'"
+
+# Comments/whitespace
+ML-COMMENT   ::= "/*" ( [^*] | ( "*" [^/] ) )* "*/"
+#SL-COMMENT   ::= "//" [^\n\r]* ("\r\n" | "\n" | "\r")?
+WS           ::= (SPACE | NEWLINE | CARRIAGE | LINEBREAK)+
+
+SPACE        ::= " "
+SPACE4       ::= SPACE SPACE SPACE SPACE
+NEWLINE      ::= "\n"
+CARRIAGE     ::= "\r"
+TAB          ::= "\t"
+INDENT       ::= (TAB | SPACE4)+
+#INDENT ::= SPACE*
+LINEBREAK    ::= ("\r\n" | "\n" | "\r") INDENT
